@@ -1,8 +1,15 @@
 package controller;
 
+import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.servlet.http.HttpServletResponse;
+import javax.swing.text.html.HTMLEditorKit.LinkController;
+
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -60,7 +67,7 @@ public class livrosCotroller {
 	
 	//METODO GET PARA BUSCAR LIVROS COM E SEM FILTROS
 	@RequestMapping(value = "/public/livros", method = RequestMethod.GET)
-	public ResponseEntity<List<Livro>> pesquisaLivrosNome(@RequestParam(defaultValue="", value="nome") String nome,
+	public ResponseEntity<List<Livro>> pesquisaLivros(@RequestParam(defaultValue="", value="nome") String nome,
 		  												@RequestParam(defaultValue="", value="autor") String autor,
 		  												@RequestParam(defaultValue="", value="isbn") String isbn) {
 		
@@ -81,19 +88,99 @@ public class livrosCotroller {
 		
 	}
 	
+	//METODO GET PARA BUSCAR LIVROS POR AUTOR
+	@RequestMapping(value = "/public/livros/autor", method = RequestMethod.GET)
+	public ResponseEntity<List<Livro>> pesquisaLivrosAutor(@RequestParam(defaultValue="", value="autor") String autor) {
+		
+		if(!listaLivros.isEmpty() && !autor.isEmpty()) {
+			List<Livro> list = new ArrayList<Livro>();
+			for (Livro livro : listaLivros) {
+				if((!autor.isEmpty() && livro.getAutor().equals(autor))) {
+					list.add(livro);
+				}
+			}
+			if(list.isEmpty()) {
+				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			}else {
+				return new ResponseEntity<List<Livro>>(list, HttpStatus.OK);
+			}
+		}
+		return new ResponseEntity<List<Livro>>(listaLivros, HttpStatus.BAD_GATEWAY);
+		
+	}
+	
+	//METODO GET PARA BUSCAR LIVROS POR ISBN
+	@RequestMapping(value = "/public/livros/isbn", method = RequestMethod.GET)
+	public ResponseEntity<List<Livro>> pesquisaLivrosISBN(@RequestParam(defaultValue="", value="isbn") String isbn) {
+		
+		if(!listaLivros.isEmpty() && !isbn.isEmpty()) {
+			List<Livro> list = new ArrayList<Livro>();
+			for (Livro livro : listaLivros) {
+				if((!isbn.isEmpty() && livro.getIsbn().equals(isbn))) {
+					list.add(livro);
+				}
+			}
+			if(!list.isEmpty()) {
+				return new ResponseEntity<List<Livro>>(list, HttpStatus.OK);
+			}else
+				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
+	}
+	
+	//METODO GET PARA BUSCAR LIVROS POR NOME
+	@RequestMapping(value = "/public/livros/nome", method = RequestMethod.GET)
+	public ResponseEntity<List<Livro>> pesquisaLivrosNome(@RequestParam(defaultValue="", value="nome") String nome) {
+		
+		if(!listaLivros.isEmpty() && !nome.isEmpty()) {
+			List<Livro> list = new ArrayList<Livro>();
+			for (Livro livro : listaLivros) {
+				if((!nome.isEmpty() && livro.getNome().equals(nome))) {
+					list.add(livro);
+				}
+			}
+			if(!list.isEmpty()) {
+				return new ResponseEntity<List<Livro>>(list, HttpStatus.OK);
+			}else
+				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
+		
+	}
+	
+	//METODO GET PARA BUSCAR LIVROS ID
+		@RequestMapping(value = "/public/livros/{id}", method = RequestMethod.GET)
+		public ResponseEntity<List<Livro>> pesquisaLivrosId(@PathVariable(value="id") long id_livro) {
+			
+			if(!listaLivros.isEmpty() && id_livro!=0) {
+				List<Livro> list = new ArrayList<Livro>();
+				for (Livro livro : listaLivros) {
+					if(livro.getId() == id_livro) {
+						list.add(livro);
+						return new ResponseEntity<List<Livro>>(list, HttpStatus.OK);
+					}
+				}
+				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+			}
+			return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
+			
+		}
+	
 	//METODO POST PARA CADASTRAR LIVROS
 	@RequestMapping(value = "/private/livros", method = RequestMethod.POST)
-	public String postarComentarioLivro(@RequestParam(defaultValue="", value="nome") String nome,
+	public ResponseEntity<Object> postarComentarioLivro(@RequestParam(defaultValue="", value="nome") String nome,
 												@RequestParam(defaultValue="", value="autor") String autor,
 												@RequestParam(defaultValue="", value="isbn") String isbn,
 												@RequestParam(defaultValue="", value="preco") float preco) {
-
+		HttpHeaders headers = new HttpHeaders();
+		
 		if(!nome.isEmpty() && !autor.isEmpty() && !isbn.isEmpty()) {
 			Livro novoLivro = new Livro(listaLivros.size()+1, nome, autor, isbn, preco , new ArrayList<String>());
 			listaLivros.add(novoLivro);
-			return "Adicionado o Livro: "+ novoLivro.toString();
+			headers.setLocation(URI.create("../../v1/public/livros/"+listaLivros.size()));
+			return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY); 
 		}  
-		return "Erro! Adicione todos os campos: Nome, Autor, ISBN e Preço.";
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 		  
 	}
 	
@@ -113,7 +200,7 @@ public class livrosCotroller {
 	
 	//METODO GET PARA EXIBIR ITENS NO CARRINHO
 	@RequestMapping(value = "/public/livros/carrinho/{session_id}", method = RequestMethod.GET)
-	public ResponseEntity<Carrinho> pesquisaLivrosNome(@PathVariable(value="session_id") String idCarrinho) {
+	public ResponseEntity<Carrinho> pesquisaCarrinhoLivros(@PathVariable(value="session_id") String idCarrinho) {
 	  
 		for (Carrinho car : listaCarrinhos) {
 			if(car.getId() == Long.parseLong(idCarrinho)) {
