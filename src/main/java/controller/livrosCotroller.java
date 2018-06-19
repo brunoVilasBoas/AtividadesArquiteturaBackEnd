@@ -1,13 +1,9 @@
 package controller;
 
-import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.servlet.http.HttpServletResponse;
-import javax.swing.text.html.HTMLEditorKit.LinkController;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -105,7 +101,7 @@ public class livrosCotroller {
 				return new ResponseEntity<List<Livro>>(list, HttpStatus.OK);
 			}
 		}
-		return new ResponseEntity<List<Livro>>(listaLivros, HttpStatus.BAD_GATEWAY);
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 		
 	}
 	
@@ -186,20 +182,22 @@ public class livrosCotroller {
 	
 	//METODO POST PARA POSTAR COMENTARIOS EM LIVROS CADASTRADOS
 	@RequestMapping(value = "/public/livros/{id}/comentario", method = RequestMethod.POST)
-	public String postarComentarioLivro(@PathVariable(value="id") long id, @RequestParam(defaultValue="", value="comentario") String comentario) {
-
-		  for (Livro livro : listaLivros) {
-			  if(livro.getId() == id) {
-				  livro.getComentario().add(comentario);
-				  return "Adicionado o comentario: "+ comentario;
-			  }
-		  }  
-		  return "Comentario Inválido";
+	public ResponseEntity<Object> postarComentarioLivro(@PathVariable(value="id") long id, @RequestParam(defaultValue="", value="comentario") String comentario) {
+		
+		HttpHeaders headers = new HttpHeaders();
+		for (Livro livro : listaLivros) {
+			if(livro.getId() == id) {
+				livro.getComentario().add(comentario);
+				headers.setLocation(URI.create("../../v1/public/livros/"+id));
+				return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
+			}
+		}  
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 		  
 	}
 	
 	//METODO GET PARA EXIBIR ITENS NO CARRINHO
-	@RequestMapping(value = "/public/livros/carrinho/{session_id}", method = RequestMethod.GET)
+	@RequestMapping(value = "/public/carrinho/{session_id}", method = RequestMethod.GET)
 	public ResponseEntity<Carrinho> pesquisaCarrinhoLivros(@PathVariable(value="session_id") String idCarrinho) {
 	  
 		for (Carrinho car : listaCarrinhos) {
@@ -208,13 +206,13 @@ public class livrosCotroller {
 			}
 		}
 	  
-		return null;
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 	}
 	
 	//METODO POST PARA ADICINAR ITENS(LIVROS) NO CARRINHO DE COMPRAS
-	@RequestMapping(value = "/public/livros/{id}/carrinho/{session_id}", method = RequestMethod.POST)
-	public String adicionarItemCarrinho(@PathVariable(value="session_id") long idCarrinho, @PathVariable(value="id") long idLivro) {
-		
+	@RequestMapping(value = "/public/carrinho/{session_id}", method = RequestMethod.POST)
+	public ResponseEntity<Object> adicionarItemCarrinho(@PathVariable(value="session_id") long idCarrinho, @RequestParam(value="id") long idLivro) {
+		HttpHeaders headers = new HttpHeaders();
 		if(listaCarrinhos != null && listaCarrinhos.isEmpty()) {
 			for (Livro livro : listaLivros) {
 				
@@ -223,7 +221,8 @@ public class livrosCotroller {
 					carrinho.getItems().add(livro);
 					carrinho.setTotalCarrinho(livro.getPreco());
 					listaCarrinhos.add(carrinho);
-					return "Carrinho criado! Item Adicionado!";
+					headers.setLocation(URI.create("../../../v1/public/carrinho/"+idCarrinho));
+					return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
 				}
 			}
 			
@@ -235,7 +234,8 @@ public class livrosCotroller {
 						if(livro.getId() == idLivro) {
 							car.getItems().add(livro);
 							car.setTotalCarrinho(carrinho.getTotalCarrinho()+livro.getPreco());
-							return "Item Adicionado";	
+							headers.setLocation(URI.create("../../../v1/public/carrinho/"+idCarrinho));
+							return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
 						} 
 					}
 				}
@@ -243,28 +243,30 @@ public class livrosCotroller {
 			
 		}
 		
-		return "Item inválido";
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 	}
 	
 	//METODO POST PARA DELETAR ITENS(LIVROS) NO CARRINHO DE COMPRAS
-	@RequestMapping(value = "/public/livros/{id}/carrinho/{session_id}", method = RequestMethod.DELETE)
-	public String deleteItemCarrinho(@PathVariable("session_id") long idCarrinho, @PathVariable("id") long idLivro) {
+	@RequestMapping(value = "/public/carrinho/{session_id}", method = RequestMethod.DELETE)
+	public ResponseEntity<Object> deleteItemCarrinho(@PathVariable("session_id") long idCarrinho, @RequestParam("id") long idLivro) {
+		HttpHeaders headers = new HttpHeaders();
 		if(listaCarrinhos != null && listaCarrinhos.isEmpty()) {
 			for (Carrinho car : listaCarrinhos) {
 				if(car.getId() == idCarrinho) {
-						car.getItems().remove((int) idCarrinho);
-						return "Item: " + idLivro + "Deletado!";
+					car.getItems().remove((int) idCarrinho);
+					headers.setLocation(URI.create("../../../v1/public/carrinho/"+listaLivros.size()));
+					return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
 				}
 			}
 		}
-		return "Item não encontrado!";	
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 	}
 	
-	//POST	/v1/public/pedidos/{session_id}
-	//METODO POST PARA ADICINAR ITENS(LIVROS) NO CARRINHO DE COMPRAS
-	@RequestMapping(value = "/public/livros/pedidos/{session_id}", method = RequestMethod.POST)
-	public String realizarPedido(@PathVariable(value="session_id") long idCarrinho) {
-		if(listaCarrinhos != null && listaCarrinhos.isEmpty()) {
+	//METODO POST PARA REALIZAR PEDIDO
+	@RequestMapping(value = "/public/pedidos/{id_Carrinho}", method = RequestMethod.POST)
+	public ResponseEntity<Object> realizarPedido(@PathVariable("id_Carrinho") long idCarrinho) {
+		HttpHeaders headers = new HttpHeaders();
+		if(listaCarrinhos != null && !listaCarrinhos.isEmpty()) {
 			for (Carrinho car : listaCarrinhos) {
 				if(car.getId() == idCarrinho) {
 					Pedido novoPedido;
@@ -275,11 +277,40 @@ public class livrosCotroller {
 						novoPedido = new Pedido(listaCarrinhos.size()+1,car,car.getTotalCarrinho(),"Pedido Computado!");
 					}
 					listaPedidos.add(novoPedido);
-					return "Pedido Realizado!";
+					headers.setLocation(URI.create("../../../v1/public/pedidos/"));
+					return new ResponseEntity<>(headers, HttpStatus.MOVED_PERMANENTLY);
 				}
 			}
 		}
-		return "Erro! Adicione Itens ao Carrinho";
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
+	}
+	//METODO GET PARA EXIBIR TODOS PEDIDOS
+	@RequestMapping(value = "/public/pedidos", method = RequestMethod.GET)
+	public ResponseEntity<List<Pedido>> consultarPedidos() {
+	
+		if(!listaPedidos.isEmpty()) {
+			return new ResponseEntity<List<Pedido>>(listaPedidos, HttpStatus.OK);
+		}
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
+	}
+		
+	//METODO GET PARA EXIBIR PEDIDOS POR ID
+	@RequestMapping(value = "/public/pedidos/{session_id}", method = RequestMethod.GET)
+	public ResponseEntity<List<Pedido>> consultarPedidos(@PathVariable(value="session_id") long idPedido) {
+	  
+		if(!listaPedidos.isEmpty()) {
+			List<Pedido> list = new ArrayList<Pedido>();
+			for (Pedido ped : listaPedidos) {
+				if(ped.getId() == idPedido) {
+					list.add(ped);
+				}
+			}
+			if(!list.isEmpty()) {
+				return new ResponseEntity<List<Pedido>>(list, HttpStatus.OK);
+			}else
+				return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+		return new ResponseEntity<>(HttpStatus.BAD_GATEWAY);
 	}
 	
 	
